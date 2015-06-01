@@ -1,0 +1,71 @@
+#!/usr/bin/env python
+import sched
+import time
+import json
+import requests
+import paho.mqtt.publish as publish
+ 
+#Publish The Title of the Track played in the P-Space Logitech Server
+
+#How frequently should it update (in seconds)
+interval = 3
+
+class MusicInfo:
+  # LMS is running on localhost. yay!
+  music = 'http://127.0.0.1:9000/jsonrpc.js'
+  # LMS jsonrpc request. a.k.a.: ROOM1 player status
+  music_req = '{"id":1,"method":"slim.request","params":["b8:27:eb:d3:92:62",["status","-",1,"tags:Nad"]]}'
+  last_music = None
+
+  def __init__(self):
+    pass
+
+  def check_info(self):
+    music_now = self.get_info()
+    if self.last_music == music_now:
+      return None
+    self.last_music = music_now
+    return music_now
+
+  def get_info(self):
+    try:
+      resp = requests.post(self.music, data=self.music_req)
+    except:
+      return None
+    if resp.status_code == 200:
+      rmsg = json.loads(resp.text)
+      artist = self.__get_music_field(rmsg, 'artist') 
+      title = self.__get_music_field(rmsg, 'title') 
+      remote_title = self.__get_music_field(rmsg, 'remote_title')
+      # Music. Pretty-printed. :)
+      if artist:
+        if "no artist" not in artist.lower():
+          return "{}-{}".format(artist, title)
+        else:
+          return title
+      else:
+        return remote_title
+    else:
+      return None
+
+  def __get_music_field(self, msg, field):
+    try:
+      return msg['result']['playlist_loop'][0][field]
+    except KeyError:
+      return None
+
+
+mi = MusicInfo()
+sc = sched.scheduler(time.time, time.sleep)
+
+def monitor_music_cb(scheduler):
+  try:
+    musicmsg = mi.check_info()
+    if musicmsg is not None:
+      publish.single("music/room1", musicmsg,hostname="192.168.1.5")
+  except:
+    pass
+  scheduler.enter(interval , 1, monitor_music_cb, (scheduler,))
+
+sc.enter(interval, 1, monitor_music_cb, (sc,))
+sc.run()

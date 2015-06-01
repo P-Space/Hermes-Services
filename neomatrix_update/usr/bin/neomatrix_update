@@ -1,0 +1,191 @@
+#!/usr/bin/env python
+
+import requests
+import schedule
+import json
+import sched
+import time
+import Queue
+import threading
+import datetime
+import paho.mqtt.client as mqtt
+from random import randint
+
+# The URL of the NeoMatrix Server
+matrix_url = 'http://192.168.1.25'
+
+message_queue = Queue.Queue()
+scheduler = sched.scheduler(time.time, time.sleep)
+
+class MatrixMessage:
+  # Defaults
+  speed = "20"
+  color = "FFFFFF"
+  text = "Default Message"
+  duration = 2
+
+  def __init__(self):
+    pass
+
+  def set_color(self, color):
+    self.color = color
+
+  def set_text(self, text):
+    self.text = text
+
+  def set_speed(self, speed):
+    self.speed = speed
+
+  def set_duration(self, duration):
+    self.duration = duration
+
+  def get_duration(self):
+    return self.duration
+
+  def send(self):
+    message = { "text": self.text,
+                "speed":self.speed,
+                "color":self.color }
+    try:
+      r = requests.post(matrix_url, data=json.dumps(message))
+    except:
+      pass
+
+def message_sender_main():
+  scheduler.enter(1, 1, message_sender_loop, (scheduler,))
+  # Enter loop
+  scheduler.run()
+ 
+matrix_enabled = True   
+time_dot = True
+
+def get_time_message():
+  global time_dot
+  time_now = datetime.datetime.now()
+  matrix_msg = MatrixMessage()
+  matrix_msg.set_speed("0")
+  color_msg = "{:02x}{:02x}{:02x}".format(time_now.hour * 10, time_now.minute * 4, time_now.second * 4)
+  matrix_msg.set_color(color_msg)
+  if time_dot:
+    matrix_msg.set_text("{:02d}:{:02d}".format(time_now.hour, time_now.minute))
+    time_dot = False
+  else:
+    matrix_msg.set_text("{:02d} {:02d}".format(time_now.hour, time_now.minute))
+    time_dot = True
+  return matrix_msg
+
+def get_empty_message():
+  matrix_msg = MatrixMessage()
+  matrix_msg.set_text("")
+  return matrix_msg
+
+def message_sender_loop(sc):
+  global matrix_enabled
+  if not message_queue.empty():
+      # If there are messages in queue, send them to matrix
+      matrix_msg = message_queue.get()
+      matrix_msg.send()
+      sc.enter(matrix_msg.get_duration(), 1, message_sender_loop, (sc,))
+  else:
+      # Queue is empty, display time with respect to status
+      if matrix_enabled:   
+        # Send Time
+        get_time_message().send()
+        sc.enter(1, 1, message_sender_loop, (sc,))
+      else:
+        # Matrix disabled
+        sc.enter(1, 1, message_sender_loop, (sc,))
+
+# The callback for when the client receives a CONNACK response from the server.
+def on_connect(client, userdata, flags, rc):
+  #print("Connected with result code "+str(rc))
+  # Subscribing in on_connect() means that if we lose the connection and
+  # reconnect then subscriptions will be renewed.
+  client.subscribe("#")
+
+# The callback for when a PUBLISH message is received from the server.
+def on_message(client, userdata, msg):
+  if 'music' in msg.topic:
+    music_message_append(str(msg.payload))
+  elif 'door' in msg.topic:
+    door_message_append(str(msg.payload))
+  elif 'status' in msg.topic:
+    status_message_append(str(msg.payload))
+
+def door_message_append(msg_str):
+  global matrix_enabled
+  message_text = "Welcome {}!".format(msg_str[:18])
+  matrix_msg = MatrixMessage()
+  matrix_msg.set_text(message_text)
+  matrix_msg.set_color("{:02x}{:02x}{:02x}".format(randint(0,254), randint(0,254), randint(0,254)))
+  matrix_msg.set_speed("30")
+  matrix_msg.set_duration(12)
+  message_queue.put(matrix_msg)
+  if not matrix_enabled:
+    # Clear the matrix when status is closed 
+    message_queue.put(get_empty_message())
+
+def music_message_append(msg_str):
+  global matrix_enabled
+  color = "{:02x}{:02x}{:02x}".format(randint(0,254), randint(0,254), randint(0,254))
+  matrix_msg1 = MatrixMessage()
+  matrix_msg1.set_text("Now playing **********")
+  matrix_msg1.set_speed("80")
+  matrix_msg1.set_color(color)
+  matrix_msg1.set_duration(3)
+  message_queue.put(matrix_msg1)
+  color = "{:02x}{:02x}{:02x}".format(randint(0,254), randint(0,254), randint(0,254))
+  matrix_msg2 = MatrixMessage()
+  if len(msg_str) < 30:
+    matrix_msg2.set_text(msg_str)
+  else:
+    matrix_msg2.set_text(msg_str[:30])
+  matrix_msg2.set_speed("30")
+  matrix_msg2.set_color(color)
+  matrix_msg2.set_duration(10)
+  message_queue.put(matrix_msg2)
+  if not matrix_enabled:
+    # Clear the matrix when status is closed 
+    message_queue.put(get_empty_message())
+
+def status_message_append(msg_str):
+  global matrix_enabled
+  if '0' in msg_str:
+    # Status CLOSE
+    message_text = "P-Space is now closing :("
+    matrix_msg1 = MatrixMessage()
+    matrix_msg1.set_text(message_text)
+    matrix_msg1.set_color("FF0000")
+    matrix_msg1.set_speed("20")
+    matrix_msg1.set_duration(20)
+    message_queue.put(matrix_msg1)
+    # Clear the matrix and disable it 
+    message_queue.put(get_empty_message())
+    matrix_enabled = False
+  elif '1' in msg_str:
+    # Status OPEN
+    message_text = "P-Space is now open"
+    matrix_msg = MatrixMessage()
+    matrix_msg.set_text(message_text)
+    matrix_msg.set_color("00FF00")
+    matrix_msg.set_speed("20")
+    matrix_msg.set_duration(20)
+    message_queue.put(matrix_msg)
+    matrix_enabled = True
+def collector_main():
+  client = mqtt.Client()
+  client.on_connect = on_connect
+  client.on_message = on_message
+  client.connect(host="192.168.1.5", keepalive=60)
+  client.loop_forever()
+
+def main():
+  # Start threads
+  collector_thread = threading.Thread(target=collector_main)
+  sender_thread = threading.Thread(target=message_sender_main)
+  collector_thread.start()
+  sender_thread.start()
+
+
+if __name__=="__main__":
+  main()
