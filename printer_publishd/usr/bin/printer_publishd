@@ -1,0 +1,44 @@
+#!/usr/bin/env python
+import sched
+import time
+import json
+import requests
+import paho.mqtt.publish as publish
+ 
+#How frequently should it update (in seconds)
+interval = 60
+
+printer_status = 'http://192.168.1.9/api/job'
+
+def get_ptl():
+  try:
+    response = requests.get(printer_status)
+  except:
+    return None
+  if response.status_code is not 200:
+    return None
+  state = response.json()['state']
+  ptl = response.json()['progress']['printTimeLeft']
+  if state in 'Printing':
+    m, s = divmod(int(ptl), 60)
+    h, m = divmod(m, 60)
+    if h > 0:
+      return "%d:%02d:%02d" % (h, m, s)
+    else:
+      return "%02d:%02d" % (m, s)
+  else:
+    return None
+
+sc = sched.scheduler(time.time, time.sleep)
+
+def monitor_printer_cb(scheduler):
+  message = get_ptl()
+  if message is not None:
+    try:
+      publish.single("printer/lab", message, hostname="192.168.1.5")
+    except:
+      pass
+  scheduler.enter(interval , 1, monitor_printer_cb, (scheduler,))
+
+sc.enter(1, 1, monitor_printer_cb, (sc,))
+sc.run()

@@ -111,6 +111,8 @@ def on_message(client, userdata, msg):
     door_message_append(str(msg.payload))
   elif 'status' in msg.topic:
     status_message_append(str(msg.payload))
+  elif 'printer' in msg.topic:
+    printer_message_append(str(msg.payload))
 
 def door_message_append(msg_str):
   global matrix_enabled
@@ -120,6 +122,18 @@ def door_message_append(msg_str):
   matrix_msg.set_color("{:02x}{:02x}{:02x}".format(randint(0,254), randint(0,254), randint(0,254)))
   matrix_msg.set_speed("30")
   matrix_msg.set_duration(12)
+  message_queue.put(matrix_msg)
+  if not matrix_enabled:
+    # Clear the matrix when status is closed 
+    message_queue.put(get_empty_message())
+
+def printer_message_append(msg_str):
+  global matrix_enabled
+  matrix_msg = MatrixMessage()
+  matrix_msg.set_text("PTL: {}".format(msg_str))
+  matrix_msg.set_color("{:02x}{:02x}{:02x}".format(randint(0,254), randint(0,254), randint(0,254)))
+  matrix_msg.set_speed("50")
+  matrix_msg.set_duration(10)
   message_queue.put(matrix_msg)
   if not matrix_enabled:
     # Clear the matrix when status is closed 
