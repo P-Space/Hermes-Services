@@ -14,6 +14,8 @@ from random import randint
 # The URL of the NeoMatrix Server
 matrix_url = 'http://192.168.1.25'
 
+power_time_last = datetime.datetime.now();
+
 message_queue = Queue.Queue()
 scheduler = sched.scheduler(time.time, time.sleep)
 
@@ -113,6 +115,8 @@ def on_message(client, userdata, msg):
     status_message_append(str(msg.payload))
   elif 'printer' in msg.topic:
     printer_message_append(str(msg.payload))
+  elif 'power' in msg.topic:
+    power_message_append(str(msg.payload))
 
 def door_message_append(msg_str):
   global matrix_enabled
@@ -138,6 +142,24 @@ def printer_message_append(msg_str):
   if not matrix_enabled:
     # Clear the matrix when status is closed 
     message_queue.put(get_empty_message())
+
+def power_message_append(msg_str):
+  global matrix_enabled
+  global power_time_last
+  power_time=time_now = datetime.datetime.now();
+  time_diff = (power_time-power_time_last).total_seconds()
+  if time_diff > 60:
+    print "Power:",msg_str
+    power_time_last=power_time
+    matrix_msg = MatrixMessage()
+    matrix_msg.set_text("Power: {}A".format(float(msg_str)/1000.0))
+    matrix_msg.set_color("{:02x}{:02x}{:02x}".format(randint(0,254), randint(0,254), randint(0,254)))
+    matrix_msg.set_speed("50")
+    matrix_msg.set_duration(10)
+    message_queue.put(matrix_msg)
+    if not matrix_enabled:
+      # Clear the matrix when status is closed 
+      message_queue.put(get_empty_message())
 
 def music_message_append(msg_str):
   global matrix_enabled
