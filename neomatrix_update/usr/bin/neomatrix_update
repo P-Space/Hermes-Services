@@ -115,7 +115,7 @@ def on_message(client, userdata, msg):
     status_message_append(str(msg.payload))
   elif 'printer' in msg.topic:
     printer_message_append(str(msg.payload))
-  elif 'power' in msg.topic:
+  elif 'power/apparent' in msg.topic:
     power_message_append(str(msg.payload))
 
 def door_message_append(msg_str):
@@ -152,7 +152,7 @@ def power_message_append(msg_str):
     if time_diff > 10:
       power_time_last=power_time
       matrix_msg = MatrixMessage()
-      matrix_msg.set_text("{0:0.1f}W".format(float(msg_str)/1000.0*220.0))
+      matrix_msg.set_text("{0:0.1f}W".format(float(msg_str)))
       matrix_msg.set_color("{:02x}{:02x}{:02x}".format(randint(0,254), randint(0,254), randint(0,254)))
       matrix_msg.set_speed("50")
       matrix_msg.set_duration(2)
