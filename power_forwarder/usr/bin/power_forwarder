@@ -1,0 +1,65 @@
+#!/usr/bin/env python
+
+import requests
+import schedule
+import json
+import sched
+import time
+import Queue
+import threading
+import datetime
+import paho.mqtt.client as mqtt
+from random import randint
+from requests.auth import HTTPBasicAuth
+
+import yaml
+
+
+with open("/etc/power_forwarder.yml", 'r') as ymlfile:
+  cfg = yaml.load(ymlfile)
+
+for section in cfg:
+  print section
+print cfg['user']    
+
+baseUrl = "https://www.sensorflare.com/api/resource/"
+current_url = baseUrl+"current"
+power_url = baseUrl+"power"
+
+# The callback for when the client receives a CONNACK response from the server.
+def on_connect(client, userdata, flags, rc):
+  #print("Connected with result code "+str(rc))
+  # Subscribing in on_connect() means that if we lose the connection and
+  # reconnect then subscriptions will be renewed.
+  client.subscribe("power")
+
+# The callback for when a PUBLISH message is received from the server.
+def on_message(client, userdata, msg):
+  if 'power' in msg.topic:
+    value = str(msg.payload)
+    print "sending",value
+    if int(value)<15000:
+      try:
+        message = { "value": value, "topic": "cur"}
+        r = requests.post(current_url, params=message,auth=HTTPBasicAuth(cfg['user'] , cfg['pass']), verify=False)
+        message = { "value": value,"topic": "curcon"}
+        r = requests.post(power_url, params=message,auth=HTTPBasicAuth(cfg['user'] , cfg['pass']), verify=False)
+      except:
+        print "Exception"
+        pass
+      
+def collector_main():
+  client = mqtt.Client()
+  client.on_connect = on_connect
+  client.on_message = on_message
+  client.connect(host="192.168.1.5", keepalive=60)
+  client.loop_forever()
+
+def main():
+  # Start threads
+  collector_thread = threading.Thread(target=collector_main)
+  collector_thread.start()
+
+
+if __name__=="__main__":
+  main()
