@@ -2,17 +2,17 @@
 # Start/stop the Power Forwarder daemon.
 #
 ### BEGIN INIT INFO
-# Provides:          power_forwarder
+# Provides:          sensorflare_forwarder
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
 # Short-Description: Power Forwarder daemon
 ### END INIT INFO
 
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
-DESC="Power Forwarder daemon"
-NAME=power_forwarder
-DAEMON=/usr/bin/power_forwarder
-PIDFILE=/var/run/power_forwarder.pid
+DESC="Sensorflare Forwarder daemon"
+NAME=sensorflare_forwarder
+DAEMON=/usr/bin/sensorflare_forwarder
+PIDFILE=/var/run/sensorflare_forwarder.pid
 SCRIPTNAME=/etc/init.d/"$NAME"
 
 test -f $DAEMON || exit 0
@@ -38,7 +38,7 @@ restart) log_daemon_msg "Restarting $DESC"
 status)
         status_of_proc -p $PIDFILE $DAEMON $NAME && exit 0 || exit $?
         ;;
-*)	log_action_msg "Usage: /etc/init.d/power_forwarder {start|stop|status|restart}"
+*)	log_action_msg "Usage: /etc/init.d/sensorflare_forwarder {start|stop|status|restart}"
         exit 2
         ;;
 esac
