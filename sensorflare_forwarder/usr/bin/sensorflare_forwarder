@@ -15,7 +15,7 @@ from requests.auth import HTTPBasicAuth
 import yaml
 
 
-with open("/etc/power_forwarder.yml", 'r') as ymlfile:
+with open("/etc/sensorflare_forwarder.yml", 'r') as ymlfile:
   cfg = yaml.load(ymlfile)
 
 for section in cfg:
@@ -25,29 +25,55 @@ print cfg['user']
 baseUrl = "https://www.sensorflare.com/api/resource/"
 current_url = baseUrl+"current"
 power_url = baseUrl+"power"
+voltage_url = baseUrl+"voltage"
+temperature_url = baseUrl+"room1/temperature"
+humidity_url = baseUrl+"room1/humidity"
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
   #print("Connected with result code "+str(rc))
   # Subscribing in on_connect() means that if we lose the connection and
   # reconnect then subscriptions will be renewed.
-  client.subscribe("power")
+  client.subscribe("#")
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
-  if 'power' in msg.topic:
+  if 'power/current' in msg.topic:
     value = str(msg.payload)
     print "sending",value
-    if int(value)<15000:
+    if float(value)<15:
       try:
-        message = { "value": value, "topic": "cur"}
+        message = { "value": float(value)*1000, "topic": "cur"}
+	print message
         r = requests.post(current_url, params=message,auth=HTTPBasicAuth(cfg['user'] , cfg['pass']), verify=False)
-        message = { "value": value,"topic": "curcon"}
-        r = requests.post(power_url, params=message,auth=HTTPBasicAuth(cfg['user'] , cfg['pass']), verify=False)
+        message = { "value": float(value)*1000,"topic": "curcon"}
+        print message
+	r = requests.post(power_url, params=message,auth=HTTPBasicAuth(cfg['user'] , cfg['pass']), verify=False)
       except:
         print "Exception"
         pass
-      
+  if 'power/voltage' in msg.topic:
+    try:
+      message = { "value": str(msg.payload), "topic": "sensor"}
+      print message
+      r = requests.post(voltage_url, params=message,auth=HTTPBasicAuth(cfg['user'] , cfg['pass']), verify=False)
+    except:
+      pass
+  if 'room1/temperature' in msg.topic:
+    try:
+      message = { "value": str(msg.payload), "topic": "sensor"}
+      print message
+      r = requests.post(temperature_url, params=message,auth=HTTPBasicAuth(cfg['user'] , cfg['pass']), verify=False)
+    except:
+      pass
+  if 'room1/humidity' in msg.topic:
+    try:
+      message = { "value": str(msg.payload), "topic": "sensor"}
+      print message
+      r = requests.post(humidity_url, params=message,auth=HTTPBasicAuth(cfg['user'] , cfg['pass']), verify=False)
+    except:
+      pass
+
 def collector_main():
   client = mqtt.Client()
   client.on_connect = on_connect
