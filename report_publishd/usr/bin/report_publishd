@@ -1,0 +1,20 @@
+#!/bin/bash
+while true;
+do
+        curl "http://jarvis/report/?json&limit=1" -s > /tmp/door-new
+        md5sum /tmp/door-new |cut -d " " -f 1 > /tmp/door-new.md5
+        md5sum /tmp/door | cut -d " " -f 1 > /tmp/door.md5
+        val=$(diff /tmp/door-new.md5 /tmp/door.md5)
+        cp /tmp/door-new /tmp/door
+        userEntered=$(cat /tmp/door | cut -d"\"" -f 14)
+        if [ -z "$val" ]
+        then
+                echo "not sending $userEntered"
+        else
+                mosquitto_pub -h 192.168.1.5 -t "door" -m "$userEntered"
+                echo "sending $userEntered"
+        fi
+
+        sleep 2;
+done
+

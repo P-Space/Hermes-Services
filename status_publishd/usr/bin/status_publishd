@@ -1,20 +1,85 @@
-#!/bin/bash
-while true;
-do
-        curl "http://jarvis/report/?json&limit=1" -s > /tmp/door-new
-        md5sum /tmp/door-new |cut -d " " -f 1 > /tmp/door-new.md5
-        md5sum /tmp/door | cut -d " " -f 1 > /tmp/door.md5
-        val=$(diff /tmp/door-new.md5 /tmp/door.md5)
-        cp /tmp/door-new /tmp/door
-        userEntered=$(cat /tmp/door | cut -d"\"" -f 14)
-        if [ -z "$val" ]
-        then
-                echo "not sending $userEntered"
-        else
-                mosquitto_pub -h 192.168.1.5 -t "door" -m "$userEntered"
-                echo "sending $userEntered"
-        fi
+#!/usr/bin/env python
 
-        sleep 2;
-done
+# publish to the broker
+import paho.mqtt.publish as publish
+
+# listen the broker for a topic
+import paho.mqtt.client as client
+
+# library to access website
+import urllib2
+
+import time
+
+mqtt_broker_ip = "192.168.1.5"
+
+website_url = {
+	'get':"http://www.p-space.gr/status/",
+	'set':"http://www.p-space.gr/status/set.php?"
+}
+
+website_url_param = {
+	'0':'close',
+	'1':'open',
+	'same':''
+}
+
+
+# What to do when connecting to the broker
+def mqtt_on_connect(status_client, userdata, return_code):
+	# Subscribing in on_connect() means that if we lose the connection and
+	# reconnect then subscriptions will be renewed.
+	status_client.subscribe("status/#")
+
+
+# What to do when a new message is received
+def mqtt_on_message(status_client, userdata, message):
+	global status
+	# Only listen to the 'status' topic
+	if "status" in message.topic:
+
+		# If a question regarding the status is received
+		if  message.payload.strip() == "?":
+			status_client.publish("status", status)
+
+		# If a status change is received
+		elif message.payload.strip() in ["0", "1"] \
+		and message.payload.strip() != status:
+			status = set_get_status_website(mode = "set", new_status = message.payload.strip())
+			
+
+# Create an mqtt client to subscribe and publish 
+def mqtt_init_client():
+	s_client = client.Client()
+	s_client.on_connect = mqtt_on_connect
+	s_client.on_message = mqtt_on_message
+	s_client.loop_start()
+	s_client.connect(mqtt_broker_ip)
+
+	return s_client
+
+
+# Get the current status from the website
+def set_get_status_website(mode = "get", new_status = 'same'):
+	try:
+		web_request = urllib2.urlopen(website_url[mode] + website_url_param[new_status])
+		if web_request.code == 200:
+			if new_status == "same":
+				return web_request.read().strip()
+			else:
+				status_client.publish("status", new_status)
+				return new_status
+	except urllib2.URLError:
+		return "0"
+	
+
+status = set_get_status_website()
+
+status_client = mqtt_init_client()
+
+while True:
+	new_status = set_get_status_website()
+	if status != new_status:
+		status = set_get_status_website(mode = "set", new_status = new_status)
+	time.sleep(60)
 
