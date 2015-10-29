@@ -38,14 +38,15 @@ def mqtt_on_message(status_client, userdata, message):
 	# Only listen to the 'status' topic
 	if "status" in message.topic:
 
+		payload = message.payload().strip()
+
 		# If a question regarding the status is received
-		if  message.payload.strip() == "?":
+		if  payload == "?":
 			status_client.publish("status", status)
 
 		# If a status change is received
-		elif message.payload.strip() in ["0", "1"] \
-		and message.payload.strip() != status:
-			status = set_get_status_website(mode = "set", new_status = message.payload.strip())
+		elif payload in ["0", "1"] and payload != status:
+			status = set_get_status_website(mode = "set", new_status = payload)
 			
 
 # Create an mqtt client to subscribe and publish 
@@ -63,14 +64,18 @@ def mqtt_init_client():
 def set_get_status_website(mode = "get", new_status = 'same'):
 	try:
 		web_request = urllib2.urlopen(website_url[mode] + website_url_param[new_status])
+		
 		if web_request.code == 200:
 			if new_status == "same":
-				return web_request.read().strip()
+				ret = web_request.read().strip()
 			else:
 				status_client.publish("status", new_status)
 				return new_status
+
 	except urllib2.URLError:
-		return "0"
+		ret = "0"
+	
+	return ret
 	
 
 status = set_get_status_website()
@@ -78,8 +83,8 @@ status = set_get_status_website()
 status_client = mqtt_init_client()
 
 while True:
+	time.sleep(60)
 	new_status = set_get_status_website()
 	if status != new_status:
 		status = set_get_status_website(mode = "set", new_status = new_status)
-	time.sleep(60)
 

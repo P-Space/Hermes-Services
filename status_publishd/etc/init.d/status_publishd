@@ -9,7 +9,7 @@
 ### END INIT INFO
 
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
-DESC="P-Space status MQTT monitor"
+DESC="P-Space status MQTT publisher"
 NAME=status_publishd
 DAEMON=/usr/bin/status_publishd
 PIDFILE=/var/run/status_publishd.pid
@@ -22,7 +22,7 @@ test -f $DAEMON || exit 0
 
 case "$1" in
 start)	log_daemon_msg "Starting $DESC"
-        start-stop-daemon -m --start --background --user pi --name $NAME -p $PIDFILE --startas $DAEMON
+        start-stop-daemon -m --start --background --user space --name $NAME -p $PIDFILE --startas $DAEMON
         log_end_msg $?
 	;;
 stop)	log_daemon_msg "Stopping $DESC"
