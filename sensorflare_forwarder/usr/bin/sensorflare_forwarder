@@ -20,14 +20,19 @@ with open("/etc/sensorflare_forwarder.yml", 'r') as ymlfile:
 
 for section in cfg:
   print section
-print cfg['user']    
+print cfg['user']
 
 baseUrl = "https://www.sensorflare.com/api/resource/"
+redisBaseUrl = "http://192.168.1.5:7379/set/"
 current_url = baseUrl+"current"
 power_url = baseUrl+"power"
 voltage_url = baseUrl+"voltage"
 temperature_url = baseUrl+"room1/temperature"
+redis_temperature_url = redisBaseUrl+"room1-temperature/"
 humidity_url = baseUrl+"room1/humidity"
+redis_humidity_url = redisBaseUrl+"room1-humidity/"
+pressure_url = baseUrl+"room1/pressure"
+redis_pressure_url = redisBaseUrl+"room1-pressure/"
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
@@ -64,6 +69,7 @@ def on_message(client, userdata, msg):
       message = { "value": str(msg.payload), "topic": "sensor"}
       print message
       r = requests.post(temperature_url, params=message,auth=HTTPBasicAuth(cfg['user'] , cfg['pass']), verify=False)
+      r = requests.get(redis_temperature_url+str(msg.payload), verify=False)
     except:
       pass
   if 'room1/humidity' in msg.topic:
@@ -71,6 +77,15 @@ def on_message(client, userdata, msg):
       message = { "value": str(msg.payload), "topic": "sensor"}
       print message
       r = requests.post(humidity_url, params=message,auth=HTTPBasicAuth(cfg['user'] , cfg['pass']), verify=False)
+      r = requests.get(redis_humidity_url+str(msg.payload), verify=False)
+    except:
+      pass
+  if 'room1/pressure' in msg.topic:
+    try:
+      message = { "value": str(msg.payload), "topic": "sensor"}
+      print message
+      r = requests.post(pressure_url, params=message,auth=HTTPBasicAuth(cfg['user'] , cfg['pass']), verify=False)
+      r = requests.get(redis_pressure_url+str(msg.payload), verify=False)
     except:
       pass
 
