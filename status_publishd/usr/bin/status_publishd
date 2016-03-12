@@ -11,6 +11,11 @@ import urllib2
 
 import time
 
+import twitter
+
+from random import randint
+
+
 mqtt_broker_ip = "192.168.1.5"
 
 website_url = {
@@ -25,6 +30,22 @@ website_url_param = {
 }
 
 
+#Add your twitter keys here
+consumer_key=""
+consumer_secret=""
+access_token_key=""
+access_token_secret=""
+
+tweets = {
+	  '0': { 
+		'status_phrase':'P-Space is now closed!',
+		'extra_phrases':['Hasta la vista, babies!', 'Au revoir!', 'See you later, alligator!']
+	       }, 
+	  '1': {
+		'status_phrase':'P-Space is now open!',
+		'extra_phrases':['Please, come in!', 'Come, we have cookies...', 'Join the party!']
+	       }
+	}
 # What to do when connecting to the broker
 def mqtt_on_connect(status_client, userdata, return_code):
 	# Subscribing in on_connect() means that if we lose the connection and
@@ -38,7 +59,7 @@ def mqtt_on_message(status_client, userdata, message):
 	# Only listen to the 'status' topic
 	if "status" in message.topic:
 
-		payload = message.payload().strip()
+		payload = message.payload.strip()
 
 		# If a question regarding the status is received
 		if  payload == "?":
@@ -47,6 +68,13 @@ def mqtt_on_message(status_client, userdata, message):
 		# If a status change is received
 		elif payload in ["0", "1"] and payload != status:
 			status = set_get_status_website(mode = "set", new_status = payload)
+			twitter_post(payload)
+			'''
+			if payload == "1":
+				twitterapi.PostUpdate('P-Space is now open!')
+			else: 
+				twitterapi.PostUpdate('P-Space is now closed!')
+			'''
 			
 
 # Create an mqtt client to subscribe and publish 
@@ -58,6 +86,18 @@ def mqtt_init_client():
 	s_client.connect(mqtt_broker_ip)
 
 	return s_client
+
+
+def twitter_post(payload):
+	twitterapi.PostUpdate(tweets[payload]['status_phrase'] + " " + tweets[payload]['extra_phrases'][randint(0, len(tweets[payload]['extra_phrases']) - 1)])
+	
+def twitter_init():
+	api = twitter.Api(consumer_key,
+                  consumer_secret,                
+                  access_token_key,
+                  access_token_secret)
+
+	return api;
 
 
 # Get the current status from the website
@@ -81,6 +121,8 @@ def set_get_status_website(mode = "get", new_status = 'same'):
 status = set_get_status_website()
 
 status_client = mqtt_init_client()
+
+twitterapi = twitter_init()
 
 while True:
 	time.sleep(60)
