@@ -29,8 +29,6 @@ website_url_param = {
 	'same':''
 }
 
-
-#Add your twitter keys here
 consumer_key=""
 consumer_secret=""
 access_token_key=""
@@ -39,11 +37,41 @@ access_token_secret=""
 tweets = {
 	  '0': { 
 		'status_phrase':'P-Space is now closed!',
-		'extra_phrases':['Hasta la vista, babies!', 'Au revoir!', 'See you later, alligator!']
+		'extra_phrases':[
+				'Hasta la vista, babies!', 
+				'Au revoir!', 
+				'See you later, alligator!'
+				' > /dev/null',
+				'Ejecting people...',
+				'Core dumped.',
+				'So Long, and Thanks for All the Fish',
+				"I'm sorry Dave. I'm afraid I can't do that",
+				"If I'm not back in five minutes, just wait longer.",
+				"These are not the hackers you are looking for...",
+				'End Of Line',
+				"!pspace",
+				"DROP TABLE HACKERS;",
+				"May the Force be with you."
+				]
 	       }, 
 	  '1': {
 		'status_phrase':'P-Space is now open!',
-		'extra_phrases':['Please, come in!', 'Come, we have cookies...', 'Join the party!']
+		'extra_phrases':[
+				'Please, come in!', 
+				'Come, we have cookies...', 
+				'Join the party!',
+				'Probably...',
+				'Commencing operations...',
+				'System booting...',
+				'Bring coffee.',
+				'Access granted!',
+				'Alright, alright, alright',
+				'Greetings, programs!',
+				'DEVELOPERS, DEVELOPERS, DEVELOPERS!',
+				'I have a bad feeling about this...',
+				"It's showtime!",
+				"It's a trap!"
+				]
 	       }
 	}
 # What to do when connecting to the broker
