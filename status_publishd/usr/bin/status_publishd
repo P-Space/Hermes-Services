@@ -40,7 +40,7 @@ tweets = {
 		'extra_phrases':[
 				'Hasta la vista, babies!', 
 				'Au revoir!', 
-				'See you later, alligator!'
+				'See you later, alligator!',
 				' > /dev/null',
 				'Ejecting people...',
 				'Core dumped.',
